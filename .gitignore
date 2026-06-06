@@ -5,4 +5,10 @@
 /.idea/libraries
 .DS_Store
 /build
+/app/build
+/gradle/wrapper/gradle-wrapper.jar
+/gradlew.bat
+*.apk
+*.ap_
+*.aab
 /captures

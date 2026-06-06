@@ -1,0 +1,47 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    buildToolsVersion "26.0.3"
+
+    defaultConfig {
+        applicationId "com.android.deskclock"
+        minSdkVersion 21
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile '../AndroidManifest.xml'
+            java.srcDirs = ['../src']
+            res.srcDirs = ['../res']
+            assets.srcDirs = ['../assets']
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.android.support:appcompat-v7:26.0.0-alpha1'
+    implementation 'com.android.support:design:26.0.0-alpha1'
+    implementation 'com.android.support:percent:26.0.0-alpha1'
+    implementation 'com.android.support:support-compat:26.0.0-alpha1'
+    implementation 'com.android.support:support-media-compat:26.0.0-alpha1'
+    implementation 'com.android.support:support-v13:26.0.0-alpha1'
+    implementation 'com.android.support:preference-v14:26.0.0-alpha1'
+    implementation 'com.android.support:gridlayout-v7:26.0.0-alpha1'
+    implementation 'com.android.support:preference-v7:26.0.0-alpha1'
+    implementation 'com.android.support:recyclerview-v7:26.0.0-alpha1'
+}
