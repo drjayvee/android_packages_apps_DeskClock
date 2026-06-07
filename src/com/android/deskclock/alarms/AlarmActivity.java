@@ -69,6 +69,36 @@ import static android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GEN
 public class AlarmActivity extends BaseActivity
         implements View.OnClickListener, View.OnTouchListener {
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (mAlarmHandled) {
+            LOGGER.v("onTouchEvent ignored: %s", event);
+            return false;
+        }
+
+        final int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_UP) {
+            // Check if this touch is outside the alarm button area
+            // If so, treat it as a simple dismiss gesture
+            final int[] contentLocation = {0, 0};
+            mContentView.getLocationOnScreen(contentLocation);
+            
+            final float x = event.getRawX() - contentLocation[0];
+            final float y = event.getRawY() - contentLocation[1];
+            
+            // Check if touch is outside the alarm button area
+            Rect rect = new android.graphics.Rect();
+            boolean hasGlobalVisibleRect = mAlarmButton.getGlobalVisibleRect(rect);
+            if (hasGlobalVisibleRect && !rect.contains((int)event.getRawX(), (int)event.getRawY())) {
+                LOGGER.v("onTouchEvent: simple dismiss (tap outside alarm button)");
+                dismiss();
+                return true;
+            }
+        }
+
+        return super.onTouchEvent(event);
+    }
+
     private static final LogUtils.Logger LOGGER = new LogUtils.Logger("AlarmActivity");
 
     private static final TimeInterpolator PULSE_INTERPOLATOR =
@@ -221,6 +251,28 @@ public class AlarmActivity extends BaseActivity
         mSnoozeButton.setOnClickListener(this);
         mDismissButton.setOnClickListener(this);
 
+        // Also make the entire content area clickable for simple dismissal
+        mContentView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (!mAlarmHandled && !isAccessibilityEnabled()) {
+                    final int action = event.getActionMasked();
+                    if (action == MotionEvent.ACTION_UP) {
+                        // Check if touch is outside the alarm button area
+                        android.graphics.Rect alarmRect = new android.graphics.Rect();
+                        mAlarmButton.getGlobalVisibleRect(alarmRect);
+                        
+                        // If touch is outside alarm button, dismiss immediately
+                        if (!alarmRect.contains((int)event.getRawX(), (int)event.getRawY())) {
+                            dismiss();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        });
+
         mAlarmAnimator = AnimatorUtils.getScaleAnimator(mAlarmButton, 1.0f, 0.0f);
         mSnoozeAnimator = getButtonAnimator(mSnoozeButton, Color.WHITE);
         mDismissAnimator = getButtonAnimator(mDismissButton, mCurrentHourColor);
@@ -337,10 +389,11 @@ public class AlarmActivity extends BaseActivity
             return;
         }
 
+        // Simple tap on snooze/dismiss buttons works immediately
         if (view == mSnoozeButton) {
-            hintSnooze();
+            snooze();
         } else if (view == mDismissButton) {
-            hintDismiss();
+            dismiss();
         }
     }
 
