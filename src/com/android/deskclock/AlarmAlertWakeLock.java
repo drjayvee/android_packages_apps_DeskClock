@@ -18,6 +18,7 @@ package com.android.deskclock;
 
 import android.content.Context;
 import android.os.PowerManager;
+import android.os.Build;
 
 /**
  * Utility class to hold wake lock in app.
@@ -33,6 +34,20 @@ public class AlarmAlertWakeLock {
         return pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
     }
 
+    public static PowerManager.WakeLock createScreenWakeLock(Context context) {
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        int flags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK 
+                | PowerManager.ACQUIRE_CAUSES_WAKEUP 
+                | PowerManager.ON_AFTER_RELEASE;
+        
+        // For Samsung devices, use a more aggressive wake lock
+        if (Build.MANUFACTURER.equalsIgnoreCase("samsung")) {
+            flags |= PowerManager.FULL_WAKE_LOCK;
+        }
+        
+        return pm.newWakeLock(flags, TAG);
+    }
+
     public static void acquireCpuWakeLock(Context context) {
         if (sCpuWakeLock != null) {
             return;
@@ -46,9 +61,7 @@ public class AlarmAlertWakeLock {
         if (sCpuWakeLock != null) {
             return;
         }
-        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        sCpuWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK
-                | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, TAG);
+        sCpuWakeLock = createScreenWakeLock(context);
         sCpuWakeLock.acquire();
     }
 

@@ -111,13 +111,25 @@ public class AlarmService extends Service {
             stopCurrentAlarm();
         }
 
-        AlarmAlertWakeLock.acquireCpuWakeLock(this);
+        // Use screen wake lock to ensure screen turns on, especially for Samsung devices
+        AlarmAlertWakeLock.acquireScreenCpuWakeLock(this);
 
         mCurrentAlarm = instance;
         AlarmNotifications.showAlarmNotification(this, mCurrentAlarm);
         mTelephonyManager.listen(mPhoneStateListener.init(), PhoneStateListener.LISTEN_CALL_STATE);
         AlarmKlaxon.start(this, mCurrentAlarm);
         sendBroadcast(new Intent(ALARM_ALERT_ACTION));
+        
+        // Launch AlarmActivity to show the alarm UI
+        launchAlarmActivity(instance);
+    }
+    
+    private void launchAlarmActivity(AlarmInstance instance) {
+        Intent alarmActivityIntent = AlarmInstance.createIntent(this, AlarmActivity.class, instance.mId);
+        alarmActivityIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
+                Intent.FLAG_ACTIVITY_NO_USER_ACTION | 
+                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+        startActivity(alarmActivityIntent);
     }
 
     private void stopCurrentAlarm() {

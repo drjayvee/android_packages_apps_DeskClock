@@ -391,11 +391,12 @@ final class AlarmNotifications {
                 .setSmallIcon(R.drawable.stat_notify_alarm)
                 .setOngoing(true)
                 .setAutoCancel(false)
-                .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
+                .setDefaults(NotificationCompat.DEFAULT_LIGHTS | NotificationCompat.DEFAULT_VIBRATE)
                 .setWhen(0)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setLocalOnly(true);
+                .setLocalOnly(true)
+                .setPriority(NotificationCompat.PRIORITY_MAX);
 
         // Setup Snooze Action
         Intent snoozeIntent = AlarmStateManager.createStateChangeIntent(service,
