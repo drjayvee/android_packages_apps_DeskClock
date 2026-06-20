@@ -885,16 +885,59 @@ public final class AlarmStateManager extends BroadcastReceiver {
         }
 
         final PendingResult result = goAsync();
-        final PowerManager.WakeLock wl = AlarmAlertWakeLock.createPartialWakeLock(context);
+        
+        // Use a more aggressive wake lock for alarm state changes to ensure device wakes from deep sleep
+        final PowerManager.WakeLock wl = AlarmAlertWakeLock.createDeepSleepWakeLock(context);
         wl.acquire();
+        
+        // For Samsung devices, acquire an additional screen wake lock immediately
+        PowerManager.WakeLock screenWl = null;
+        if (Build.MANUFACTURER.equalsIgnoreCase("samsung")) {
+            screenWl = AlarmAlertWakeLock.createScreenWakeLock(context);
+            screenWl.acquire();
+        }
+        
+        final PowerManager.WakeLock finalScreenWl = screenWl;
+        
+        // For alarm state changes, use a longer timeout to ensure wake locks are held
+        // during the entire alarm processing, especially on Samsung devices
+        final long wakeLockTimeout = Build.MANUFACTURER.equalsIgnoreCase("samsung") ? 30000 : 10000; // 30s for Samsung, 10s for others
+        
         AsyncHandler.post(new Runnable() {
             @Override
             public void run() {
-                handleIntent(context, intent);
-                result.finish();
-                wl.release();
+                try {
+                    handleIntent(context, intent);
+                } finally {
+                    // Hold wake locks a bit longer to ensure smooth transition to alarm activity
+                    try {
+                        Thread.sleep(2000); // 2 second buffer
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
+                    result.finish();
+                    wl.release();
+                    if (finalScreenWl != null) {
+                        finalScreenWl.release();
+                    }
+                }
             }
         });
+        
+        // Set a timeout to prevent wake locks from being held indefinitely
+        AsyncHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (wl.isHeld()) {
+                    LogUtils.w("Releasing wake lock due to timeout");
+                    wl.release();
+                }
+                if (finalScreenWl != null && finalScreenWl.isHeld()) {
+                    LogUtils.w("Releasing screen wake lock due to timeout");
+                    finalScreenWl.release();
+                }
+            }
+        }, wakeLockTimeout);
     }
 
     public static void handleIntent(Context context, Intent intent) {
@@ -1012,7 +1055,20 @@ public final class AlarmStateManager extends BroadcastReceiver {
             final AlarmManager am = (AlarmManager) context.getSystemService(ALARM_SERVICE);
             if (Utils.isMOrLater()) {
                 // Ensure the alarm fires even if the device is dozing.
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
+                // For critical alarm state changes (like FIRED_STATE), use setAlarmClock
+                // which is more reliable for waking the device
+                if (newState == AlarmInstance.FIRED_STATE) {
+                    // Create a show intent for the alarm
+                    Intent showIntent = AlarmInstance.createIntent(context, AlarmActivity.class, instance.mId);
+                    showIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
+                    PendingIntent showPendingIntent = PendingIntent.getActivity(context, instance.hashCode(),
+                            showIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+                    
+                    AlarmManager.AlarmClockInfo alarmClockInfo = new AlarmManager.AlarmClockInfo(timeInMillis, showPendingIntent);
+                    am.setAlarmClock(alarmClockInfo, pendingIntent);
+                } else {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
+                }
             } else {
                 am.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
             }

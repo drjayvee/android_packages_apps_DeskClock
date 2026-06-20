@@ -48,6 +48,26 @@ public class AlarmAlertWakeLock {
         return pm.newWakeLock(flags, TAG);
     }
 
+    /**
+     * Creates a wake lock specifically for waking the device from deep sleep when alarm fires.
+     * This is more aggressive than the screen wake lock and should be used when we need to
+     * ensure the device wakes up from deep sleep.
+     */
+    public static PowerManager.WakeLock createDeepSleepWakeLock(Context context) {
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        int flags = PowerManager.PARTIAL_WAKE_LOCK 
+                | PowerManager.ACQUIRE_CAUSES_WAKEUP;
+        
+        // For Samsung devices, use full wake lock to overcome aggressive power management
+        if (Build.MANUFACTURER.equalsIgnoreCase("samsung")) {
+            flags = PowerManager.FULL_WAKE_LOCK 
+                  | PowerManager.ACQUIRE_CAUSES_WAKEUP
+                  | PowerManager.ON_AFTER_RELEASE;
+        }
+        
+        return pm.newWakeLock(flags, TAG + ".DeepSleep");
+    }
+
     public static void acquireCpuWakeLock(Context context) {
         if (sCpuWakeLock != null) {
             return;
@@ -55,6 +75,16 @@ public class AlarmAlertWakeLock {
 
         sCpuWakeLock = createPartialWakeLock(context);
         sCpuWakeLock.acquire();
+    }
+
+    /**
+     * Acquires a deep sleep wake lock to ensure device wakes from deep sleep.
+     * This should be called when we need to ensure the device wakes up from deep sleep.
+     */
+    public static void acquireDeepSleepWakeLock(Context context) {
+        PowerManager.WakeLock deepSleepWl = createDeepSleepWakeLock(context);
+        deepSleepWl.acquire();
+        // Note: This wake lock should be released separately as it's used for specific cases
     }
 
     public static void acquireScreenCpuWakeLock(Context context) {

@@ -36,5 +36,9 @@ public final class AsyncHandler {
         sHandler.post(r);
     }
 
+    public static void postDelayed(Runnable r, long delayMillis) {
+        sHandler.postDelayed(r, delayMillis);
+    }
+
     private AsyncHandler() {}
 }

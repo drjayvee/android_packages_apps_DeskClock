@@ -16,12 +16,15 @@ This document describes the changes made to fix alarm issues on Samsung devices,
 - Added Samsung-specific detection using `Build.MANUFACTURER`
 - Created `createScreenWakeLock()` method with aggressive wake lock flags
 - Uses `FULL_WAKE_LOCK` for Samsung devices to overcome aggressive power management
+- **NEW**: Added `createDeepSleepWakeLock()` method for waking device from deep sleep
+- **NEW**: Added `acquireDeepSleepWakeLock()` method for early wake lock acquisition
 
 ### 2. AlarmService.java
 - Changed from `acquireCpuWakeLock()` to `acquireScreenCpuWakeLock()`
 - Ensures screen turns on when alarm triggers
 - **CRITICAL FIX**: Added automatic AlarmActivity launch when alarm fires
 - The service now properly launches the alarm UI in addition to starting sound/vibration
+- **NEW**: Now uses `acquireDeepSleepWakeLock()` to ensure device wakes from deep sleep
 
 ### 3. AlarmActivity.java
 - Added additional `FLAG_DISMISS_KEYGUARD` flag
@@ -31,6 +34,13 @@ This document describes the changes made to fix alarm issues on Samsung devices,
 - Added `DEFAULT_VIBRATE` to notification defaults
 - Set priority to `PRIORITY_MAX` for alarm notifications
 - Ensures notifications are shown prominently
+
+### 5. AlarmStateManager.java
+- **NEW**: Modified `onReceive()` to acquire deep sleep wake lock immediately when alarm state change is received
+- **NEW**: For Samsung devices, acquires additional screen wake lock immediately
+- **NEW**: Modified `AlarmManagerStateChangeScheduler.scheduleInstanceStateChange()` to use `setAlarmClock()` for FIRED_STATE transitions on Android M+
+- **NEW**: This provides better reliability for waking device from deep sleep and Doze mode
+- **NEW**: Uses `AlarmManager.AlarmClockInfo` which is designed specifically for alarm clock apps
 
 ## Keystore Information
 
@@ -53,17 +63,20 @@ The app is now signed with:
    ```
 
 3. **Test alarm functionality**:
-   - Set an alarm for 1-2 minutes in the future
-   - Let the device screen turn off or lock the device
-   - Wait for the alarm to trigger
+   - **Basic test**: Set an alarm for 1-2 minutes in the future, let screen turn off, wait for trigger
+   - **Deep sleep test**: Set an alarm for middle of the night (e.g., 3 AM), let device enter deep sleep
+   - **Doze mode test**: Let device sit idle for 30+ minutes to enter Doze mode, then test alarm
+   - **Samsung power saving test**: Enable Samsung's power saving modes and test alarm reliability
 
 ## Expected Behavior
 
-✅ Screen turns on automatically when alarm triggers
+✅ Screen turns on automatically when alarm triggers (even from deep sleep)
 ✅ Alarm activity appears immediately (not home screen)
 ✅ Notification is visible in notification shade
 ✅ Vibration works properly
 ✅ Sound plays as expected
+✅ Device wakes reliably from Doze mode
+✅ Works with Samsung's aggressive power management enabled
 
 ## Samsung-Specific Troubleshooting
 
@@ -80,6 +93,16 @@ If issues persist:
 
 4. **Check Do Not Disturb settings**:
    - Ensure alarms are allowed to bypass Do Not Disturb mode
+
+5. **Disable Samsung power saving modes**:
+   - Settings > Device maintenance > Battery > Power mode > Set to "Optimized" or "High performance"
+   - Disable "Adaptive battery" and "Put unused apps to sleep"
+
+6. **Check app sleep settings**:
+   - Settings > Device maintenance > Battery > Sleeping apps > Ensure DeskClock is not listed
+
+7. **Enable background data**:
+   - Settings > Apps > DeskClock > Mobile data > Allow background data usage
 
 ## Build Instructions
 

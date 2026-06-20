@@ -21,8 +21,10 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
@@ -111,7 +113,10 @@ public class AlarmService extends Service {
             stopCurrentAlarm();
         }
 
-        // Use screen wake lock to ensure screen turns on, especially for Samsung devices
+        // Acquire deep sleep wake lock first to ensure device is awake
+        AlarmAlertWakeLock.acquireDeepSleepWakeLock(this);
+        
+        // Then acquire screen wake lock to ensure screen turns on, especially for Samsung devices
         AlarmAlertWakeLock.acquireScreenCpuWakeLock(this);
 
         mCurrentAlarm = instance;
@@ -148,7 +153,17 @@ public class AlarmService extends Service {
         stopForeground(true /* removeNotification */);
 
         mCurrentAlarm = null;
+        
+        // Release all wake locks when stopping alarm
         AlarmAlertWakeLock.releaseCpuLock();
+        
+        // For Samsung devices, ensure screen wake lock is also released
+        if (Build.MANUFACTURER.equalsIgnoreCase("samsung")) {
+            PowerManager.WakeLock screenWl = AlarmAlertWakeLock.createScreenWakeLock(this);
+            if (screenWl.isHeld()) {
+                screenWl.release();
+            }
+        }
     }
 
     private final BroadcastReceiver mActionsReceiver = new BroadcastReceiver() {
